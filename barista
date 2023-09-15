@@ -1,0 +1,17 @@
+#! /bin/zsh
+
+ACTION=$1
+VERSION=$2
+
+ACTION=`echo $ACTION | tr '[:upper:]' '[:lower:]'`
+VERSION=`echo $VERSION | tr '[:upper:]' '[:lower:]'`
+
+if [ $ACTION = "use" ]
+then 
+  echo "Brewing a nice Java $VERSION..."
+  export JAVA_HOME=`/usr/libexec/java_home -v $VERSION`
+else
+  echo "Not implemented yet"
+fi
+
+echo "$USER, it's ready!"
