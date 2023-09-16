@@ -1,17 +1,244 @@
 #! /bin/zsh
 
-ACTION=$1
-VERSION=$2
+BASE_DIR="$HOME/.barista"
+VERSION_FILE="version"
 
-ACTION=`echo $ACTION | tr '[:upper:]' '[:lower:]'`
-VERSION=`echo $VERSION | tr '[:upper:]' '[:lower:]'`
+HELP="help"
+LIST="list"
+RESET="reset"
+THE_USUAL="the-usual"
+USE="use"
 
-if [ $ACTION = "use" ]
-then 
-  echo "Brewing a nice Java $VERSION..."
-  export JAVA_HOME=`/usr/libexec/java_home -v $VERSION`
-else
-  echo "Not implemented yet"
-fi
+TRUE="1"
+FALSE="0"
 
-echo "$USER, it's ready!"
+ACTION=""
+VERSION=""
+QUIET=$FALSE
+LOCAL=$FALSE
+
+JAVA_OPTIONS_FULL=()
+JAVA_OPTIONS_VERSION=""
+
+JAVA_OPTS_RAW=$(/usr/libexec/java_home -V |& grep "  ")
+IFS=$'\n' read -d '\n' -r -A JAVA_OPTS <<< $JAVA_OPTS_RAW
+
+for java_opt in "${JAVA_OPTS[@]}"
+do
+  CURRENT_OPT=$(echo $java_opt | sed 's/^ *//g')
+  CURRENT_OPT_VERSION=$(echo $CURRENT_OPT | cut -d ' ' -f1) 
+  JAVA_OPTIONS_FULL+=($CURRENT_OPT)
+  JAVA_OPTIONS_VERSION="$JAVA_OPTIONS_VERSION;$CURRENT_OPT_VERSION"
+done
+
+function verify_version_input() {
+  if [[ $JAVA_OPTIONS_VERSION =~ ";${1}" ]]
+  then
+    echo $TRUE
+  else
+    echo $FALSE
+  fi
+}
+
+function join_path() {
+  echo $1/$2
+}
+
+VERSION_FILE_PATH=`join_path $BASE_DIR $VERSION_FILE`
+
+function print_help() {
+  echo "actions:\n"\
+          "  the-usual     Prints the formated 'java_home' command with the stored version.\n"\
+          "  help          Prints this guide.\n"\
+          "  list          Lists all manageable java configurations available.\n"\
+          "  reset         Resets all configurations.\n"\
+          "  use           Sets a specific configuration to be used.\n"\
+          "flags:\n"\
+          "  -l --local    Limits effect on the local terminal only. Doesn't change version file.\n"\
+          "  -q --quiet    Prints only the necessary command to be run on terminal. For use with 'source'.\n"\
+}
+
+function lower() {
+  echo $1 | tr '[:upper:]' '[:lower:]'
+}
+
+function print_final_ester_egg() {
+  if [ $QUIET = $FALSE ]
+  then
+    echo "$USER, it's ready!"
+  fi
+}
+
+function check_base_dir() {
+  if [ ! -d $BASE_DIR ]
+  then
+    mkdir $BASE_DIR
+  fi
+}
+
+function check_version_file() {
+  if [ ! -f $VERSION_FILE_PATH ]
+  then
+    touch $VERSION_FILE_PATH
+  fi
+}
+
+function check_storage_structure() {
+  check_base_dir
+  check_version_file
+}
+
+function load_version() {
+  check_storage_structure
+  read -r LINE < $VERSION_FILE_PATH
+  echo $LINE
+}
+
+function reset_all() {
+  rm -f $VERSION_FILE_PATH
+  check_storage_structure
+}
+
+IS_VERSION_NEXT=$FALSE
+
+function parse_actions() {
+  case $1 in
+    $HELP)
+      ACTION=$HELP
+      ;;
+    $LIST)
+      ACTION=$LIST
+      ;;
+    $RESET)
+      ACTION=$RESET
+      ;;
+    $THE_USUAL)
+      ACTION=$THE_USUAL
+      ;;
+    $USE)
+      ACTION=$USE
+      IS_VERSION_NEXT=$TRUE
+      ;;
+    *)
+      echo "Action '${1}' is not known. Aborting."
+      exit
+      ;;
+  esac
+}
+
+function flag_not_known() {
+  echo "Flag '${1}' not known. Aborting."
+  exit
+}
+
+function two_dashs_flag() {
+  case $1 in
+    "local")
+      LOCAL=$TRUE
+      ;;
+    "quiet")
+      QUIET=$TRUE
+      ;;
+    *)
+      flag_not_known "--${1}"
+      ;;
+  esac
+}
+
+function one_dash_flag() {
+  for ((i=0;i<${#${1}};i++));
+  do
+    SINGLE_PARAM=${${1}:$i:1}
+
+    case $SINGLE_PARAM in
+      "l")
+        LOCAL=$TRUE
+        ;;
+      "q")
+        QUIET=$TRUE
+        ;;
+      *)
+        flag_not_known "-${1}"
+        ;;
+    esac
+  done
+}
+
+function handle_parameter() {
+  if [ $IS_VERSION_NEXT = $TRUE ]
+  then
+    if [ $(verify_version_input $1) = $TRUE ]
+    then
+      VERSION=$1
+      IS_VERSION_NEXT=$FALSE
+    elif [[ $1 =~ [0-9] ]]
+    then
+      echo "Version number invalid. Check and try again."
+      exit
+    else
+      echo "Parameter '${1}' invalid, should be the version number. Aborting."
+      exit
+    fi
+  elif [ ${1:0:2} = "--" ]
+  then
+    two_dashs_flag ${1:2} 
+  elif [ ${1:0:1} = "-" ]
+  then
+    one_dash_flag ${1:1}
+  else
+    parse_actions $1
+  fi
+}
+
+
+IFS=' ' read -r -A PARAMS <<< $@
+
+for parameter in "${PARAMS[@]}"
+do
+    handle_parameter $parameter
+done
+
+
+case $ACTION in
+
+$THE_USUAL)
+  QUIET=$TRUE
+  LOADED_VERSION=`load_version`
+  if [ $LOADED_VERSION ] && [ $(verify_version_input $LOADED_VERSION) = $TRUE ]
+  then
+    echo '/usr/libexec/java_home -v' $LOADED_VERSION
+  else
+    echo '/usr/libexec/java_home'
+  fi
+  ;;
+$USE) 
+  if [ $QUIET = $FALSE ]
+  then
+    echo "Brewing a nice Java $VERSION... Run in your terminal:"
+  fi
+  check_storage_structure
+  if [ $LOCAL = $FALSE ]
+  then
+    echo $VERSION > $VERSION_FILE_PATH
+  fi
+  echo "export JAVA_HOME=`/usr/libexec/java_home -v $VERSION`"
+  ;;
+$LIST)
+  for java_opt_full in "${JAVA_OPTIONS_FULL[@]}"
+  do
+    echo $java_opt_full
+  done
+  ;;
+$HELP)
+  print_help
+  ;;
+$RESET)
+  reset_all
+  ;;
+*)
+  echo "Command not found"
+  print_help
+  ;;
+esac
+
+print_final_ester_egg
