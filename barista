@@ -48,18 +48,14 @@ VERSION_FILE_PATH=`join_path $BASE_DIR $VERSION_FILE`
 
 function print_help() {
   echo "actions:\n"\
-          "  the-usual     Prints the formated 'java_home' command with the stored version.\n"\
-          "  help          Prints this guide.\n"\
-          "  list          Lists all manageable java configurations available.\n"\
-          "  reset         Resets all configurations.\n"\
-          "  use           Sets a specific configuration to be used.\n"\
-          "flags:\n"\
-          "  -l --local    Limits effect on the local terminal only. Doesn't change version file.\n"\
-          "  -q --quiet    Prints only the necessary command to be run on terminal. For use with 'source'.\n"\
-}
-
-function lower() {
-  echo $1 | tr '[:upper:]' '[:lower:]'
+        "  the-usual     Prints the formated 'java_home' command with the stored version.\n"\
+        "  help          Prints this guide.\n"\
+        "  list          Lists all manageable java configurations available.\n"\
+        "  reset         Resets all configurations.\n"\
+        "  use           Sets a specific configuration to be used.\n"\
+        "flags:\n"\
+        "  -l --local    Limits effect on the local terminal only. Doesn't change version file.\n"\
+        "  -q --quiet    Prints only the necessary command to be run on terminal. For use with 'source'.\n"\
 }
 
 function print_final_ester_egg() {
@@ -121,6 +117,7 @@ function parse_actions() {
       ;;
     *)
       echo "Action '${1}' is not known. Aborting."
+      print_help
       exit
       ;;
   esac
@@ -128,6 +125,7 @@ function parse_actions() {
 
 function flag_not_known() {
   echo "Flag '${1}' not known. Aborting."
+  print_help
   exit
 }
 
