@@ -219,7 +219,7 @@ $USE)
   then
     echo $VERSION > $VERSION_FILE_PATH
   fi
-  echo "export JAVA_HOME=`/usr/libexec/java_home -v $VERSION`"
+  export JAVA_HOME=`/usr/libexec/java_home -v $VERSION`
   ;;
 $LIST)
   for java_opt_full in "${JAVA_OPTIONS_FULL[@]}"
